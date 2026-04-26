@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シンプルアラーム</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+
+        .time-display {
+            text-align: center;
+            font-size: 48px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 30px;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .input-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        input[type="time"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="time"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-set {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-set:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-set:active {
+            transform: translateY(0);
+        }
+
+        .btn-cancel {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .btn-cancel:hover {
+            background: #ee5a52;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+        }
+
+        .btn-cancel:active {
+            transform: translateY(0);
+        }
+
+        .alarm-status {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .status-label {
+            color: #888;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .alarm-time {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .no-alarm {
+            color: #999;
+            font-size: 14px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 20px;
+                margin: 20px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            .time-display {
+                font-size: 40px;
+            }
+
+            .alarm-time {
+                font-size: 28px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⏰ アラーム</h1>
+
+        <div class="time-display" id="currentTime">00:00</div>
+
+        <div class="alarm-status">
+            <div class="status-label" id="statusLabel">アラーム未設定</div>
+            <div class="alarm-time" id="alarmDisplay"></div>
+        </div>
+
+        <div class="input-group" id="inputGroup">
+            <label for="alarmTime">アラーム時刻を設定</label>
+            <input type="time" id="alarmTime">
+        </div>
+
+        <div class="button-group">
+            <button class="btn-set" id="setBtn">設定</button>
+            <button class="btn-cancel" id="cancelBtn" class="hidden">キャンセル</button>
+        </div>
+    </div>
+
+    <script>
+        const currentTimeDisplay = document.getElementById('currentTime');
+        const alarmTimeInput = document.getElementById('alarmTime');
+        const setBtn = document.getElementById('setBtn');
+        const cancelBtn = document.getElementById('cancelBtn');
+        const alarmDisplay = document.getElementById('alarmDisplay');
+        const statusLabel = document.getElementById('statusLabel');
+        const inputGroup = document.getElementById('inputGroup');
+
+        let alarmSet = false;
+        let alarmTime = null;
+        let alarmTriggered = false;
+
+        // 現在時刻を表示
+        function updateCurrentTime() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            currentTimeDisplay.textContent = `${hours}:${minutes}`;
+
+            // アラームチェック
+            if (alarmSet && !alarmTriggered) {
+                const currentTimeString = `${hours}:${minutes}`;
+                if (currentTimeString === alarmTime) {
+                    triggerAlarm();
+                }
+            }
+        }
+
+        // 初期化時刻を設定
+        function initializeTimeInput() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            alarmTimeInput.value = `${hours}:${minutes}`;
+        }
+
+        // アラーム設定
+        setBtn.addEventListener('click', () => {
+            if (alarmTimeInput.value) {
+                alarmTime = alarmTimeInput.value;
+                alarmSet = true;
+                alarmTriggered = false;
+                updateAlarmDisplay();
+                updateUI();
+            }
+        });
+
+        // アラームキャンセル
+        cancelBtn.addEventListener('click', () => {
+            alarmSet = false;
+            alarmTriggered = false;
+            alarmTime = null;
+            alarmDisplay.textContent = '';
+            statusLabel.textContent = 'アラーム未設定';
+            updateUI();
+        });
+
+        // アラーム表示を更新
+        function updateAlarmDisplay() {
+            if (alarmSet) {
+                statusLabel.textContent = 'アラーム設定時刻';
+                alarmDisplay.textContent = alarmTime;
+            }
+        }
+
+        // UI更新
+        function updateUI() {
+            if (alarmSet) {
+                inputGroup.classList.add('hidden');
+                setBtn.classList.add('hidden');
+                cancelBtn.classList.remove('hidden');
+            } else {
+                inputGroup.classList.remove('hidden');
+                setBtn.classList.remove('hidden');
+                cancelBtn.classList.add('hidden');
+            }
+        }
+
+        // アラーム発動
+        function triggerAlarm() {
+            alarmTriggered = true;
+            statusLabel.textContent = '⏰ アラーム発動！';
+
+            // 音を再生
+            playAlarmSound();
+
+            // 3秒後に自動リセット
+            setTimeout(() => {
+                alarmSet = false;
+                alarmTriggered = false;
+                alarmDisplay.textContent = '';
+                statusLabel.textContent = 'アラーム未設定';
+                updateUI();
+            }, 3000);
+        }
+
+        // アラーム音
+        function playAlarmSound() {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const now = audioContext.currentTime;
+
+            // ビープ音を3回
+            for (let i = 0; i < 3; i++) {
+                const oscillator = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+
+                oscillator.connect(gain);
+                gain.connect(audioContext.destination);
+
+                oscillator.frequency.value = 800;
+                oscillator.type = 'sine';
+
+                gain.gain.setValueAtTime(0.3, now + i * 0.5);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.5 + 0.4);
+
+                oscillator.start(now + i * 0.5);
+                oscillator.stop(now + i * 0.5 + 0.4);
+            }
+        }
+
+        // 初期化
+        initializeTimeInput();
+        updateCurrentTime();
+        setInterval(updateCurrentTime, 1000);
+    </script>
+</body>
+</html>
